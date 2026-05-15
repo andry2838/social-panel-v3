@@ -18,6 +18,14 @@ app.add_middleware(
 
 app.include_router(router)
 
+from fastapi.staticfiles import StaticFiles
+import os
+
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "3.0.0"}
+
+# Serve modern React frontend
+dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.exists(dist_path):
+    app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
