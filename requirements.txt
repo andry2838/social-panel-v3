@@ -29,3 +29,4 @@ cryptography>=44.0.0
 aiohttp>=3.11.0
 requests>=2.32.3
 python-multipart>=0.0.18
+fpdf2>=2.8.0  

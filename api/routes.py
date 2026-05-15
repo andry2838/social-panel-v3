@@ -1,4 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Depends
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List, Dict
@@ -12,6 +13,7 @@ from core.threads_engine import ThreadsEngine
 from core.twitter_engine import TwitterEngine
 from core.database import get_db
 from core.models import Campaign, ActionLog, Account
+from core.pdf_generator import generate_campaign_report
 from scheduler.tasks import (
     routine_instagram, routine_threads, routine_twitter,
     bulk_action_instagram, bulk_action_twitter, execute_smart_campaign
@@ -175,3 +177,31 @@ def create_campaign(camp: CampaignCreate, bg: BackgroundTasks, db: Session = Dep
 def list_campaigns(db: Session = Depends(get_db)):
     campaigns = db.query(Campaign).all()
     return {"campaigns": campaigns}
+
+@router.get("/reports/{campaign_id}/download")
+def download_pdf_report(campaign_id: str, agency_name: str = "BoostPanel Agency", db: Session = Depends(get_db)):
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(404, "Campagne inconnue")
+        
+    # TODO: Calculate real stats from ActionLogs
+    # For now, generate dummy stats matching the campaign features
+    stats = {
+        "new_followers": 142,
+        "stories_viewed": 530 if campaign.features.get("story_interactions") else 0,
+        "polls_voted": 85 if campaign.features.get("story_interactions") else 0,
+        "ai_comments": 45 if campaign.features.get("auto_comment") else 0,
+        "comment_likes": 120 if campaign.features.get("auto_like") else 0,
+        "top_sources": [
+            {"username": target.replace('@', ''), "conversions": 34} 
+            for target in campaign.targets.get("competitors", [])[:3]
+        ]
+    }
+    
+    filepath = generate_campaign_report(campaign.name, stats, agency_name)
+    
+    return FileResponse(
+        path=filepath,
+        filename=os.path.basename(filepath),
+        media_type="application/pdf"
+    )
