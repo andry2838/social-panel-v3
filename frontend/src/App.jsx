@@ -118,6 +118,54 @@ function AccountsView() {
 }
 
 function CampaignsView() {
+  const [name, setName] = useState('')
+  const [targets, setTargets] = useState('')
+  const [features, setFeatures] = useState({
+    autoLike: true,
+    autoFollow: true,
+    storyView: false,
+    welcomeDm: false
+  })
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+
+  const toggleFeature = (feat) => {
+    setFeatures({...features, [feat]: !features[feat]})
+  }
+
+  const handleLaunch = async () => {
+    setLoading(true)
+    try {
+      const payload = {
+        account_id: "demo_account", // En vrai, récupéré d'un selecteur
+        name: name || "Nouvelle Campagne",
+        type: "EXPERT",
+        targets: { competitors: targets.split(',').map(t => t.trim()) },
+        features: { 
+          story_interactions: features.storyView,
+          smart_follow: features.autoFollow,
+          auto_like: features.autoLike
+        },
+        ai_settings: { lang_filter: ["fr"] },
+        activity_settings: {}
+      }
+      
+      const response = await fetch('/api/v1/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      
+      if (response.ok) {
+        setSuccess(true)
+        setTimeout(() => setSuccess(false), 3000)
+      }
+    } catch (e) {
+      console.error(e)
+    }
+    setLoading(false)
+  }
+
   return (
     <div className="fade-in">
       <h1 className="page-title" style={{marginBottom: '2rem'}}>🎯 Campagnes d'Acquisition</h1>
@@ -128,32 +176,44 @@ function CampaignsView() {
           
           <div className="input-group">
             <label className="input-label">Nom de la campagne</label>
-            <input className="modern-input" type="text" placeholder="Ex: Croissance Estivale 2026" />
+            <input 
+              className="modern-input" 
+              type="text" 
+              placeholder="Ex: Croissance Estivale 2026"
+              value={name}
+              onChange={(e) => setName(e.target.value)} 
+            />
           </div>
           
           <div className="input-group">
             <label className="input-label">Cibles (Comptes concurrents, hashtags)</label>
-            <textarea className="modern-input" rows="4" placeholder="@concurrent1, @concurrent2, #marketing"></textarea>
+            <textarea 
+              className="modern-input" 
+              rows="4" 
+              placeholder="@concurrent1, @concurrent2"
+              value={targets}
+              onChange={(e) => setTargets(e.target.value)}
+            ></textarea>
           </div>
           
           <h3 style={{fontSize: '1rem', margin: '2rem 0 1rem 0', color: 'var(--primary)'}}>Fonctionnalités Activées</h3>
           
           <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-            <div className="modern-toggle active">
+            <div className={`modern-toggle ${features.autoLike ? 'active' : ''}`} onClick={() => toggleFeature('autoLike')}>
               <span>👍 Auto-Like</span>
-              <div style={{width: '20px', height: '20px', borderRadius: '50%', background: 'var(--primary)'}}></div>
+              <div style={{width: '20px', height: '20px', borderRadius: '50%', background: features.autoLike ? 'var(--primary)' : 'transparent', border: features.autoLike ? 'none' : '2px solid var(--border-card)'}}></div>
             </div>
-            <div className="modern-toggle active">
+            <div className={`modern-toggle ${features.autoFollow ? 'active' : ''}`} onClick={() => toggleFeature('autoFollow')}>
               <span>👤 Auto-Follow</span>
-              <div style={{width: '20px', height: '20px', borderRadius: '50%', background: 'var(--primary)'}}></div>
+              <div style={{width: '20px', height: '20px', borderRadius: '50%', background: features.autoFollow ? 'var(--primary)' : 'transparent', border: features.autoFollow ? 'none' : '2px solid var(--border-card)'}}></div>
             </div>
-            <div className="modern-toggle">
-              <span>👁️ Story View</span>
-              <div style={{width: '20px', height: '20px', borderRadius: '50%', border: '2px solid var(--border-card)'}}></div>
+            <div className={`modern-toggle ${features.storyView ? 'active' : ''}`} onClick={() => toggleFeature('storyView')}>
+              <span>👁️ Story View (Polls/Sliders)</span>
+              <div style={{width: '20px', height: '20px', borderRadius: '50%', background: features.storyView ? 'var(--primary)' : 'transparent', border: features.storyView ? 'none' : '2px solid var(--border-card)'}}></div>
             </div>
-            <div className="modern-toggle">
+            <div className={`modern-toggle ${features.welcomeDm ? 'active' : ''}`} onClick={() => toggleFeature('welcomeDm')}>
               <span>💌 Welcome DM</span>
-              <div style={{width: '20px', height: '20px', borderRadius: '50%', border: '2px solid var(--border-card)'}}></div>
+              <div style={{width: '20px', height: '20px', borderRadius: '50%', background: features.welcomeDm ? 'var(--primary)' : 'transparent', border: features.welcomeDm ? 'none' : '2px solid var(--border-card)'}}></div>
             </div>
           </div>
         </div>
@@ -161,13 +221,18 @@ function CampaignsView() {
         <div className="glass-card" style={{height: 'fit-content', background: 'linear-gradient(180deg, rgba(30,41,59,0.9), rgba(15,23,42,0.9))'}}>
           <h2 style={{fontSize: '1.2rem', marginBottom: '1.5rem'}}>Résumé</h2>
           <ul style={{listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem', color: 'var(--text-muted)'}}>
-            <li><strong style={{color: 'white'}}>Type:</strong> Expert (Manuel)</li>
+            <li><strong style={{color: 'white'}}>Type:</strong> Expert (Automatisé)</li>
             <li><strong style={{color: 'white'}}>Vitesse:</strong> Rapide 🚀</li>
-            <li><strong style={{color: 'white'}}>Actions/jour:</strong> ~150 cibles</li>
-            <li><strong style={{color: 'white'}}>Risque ban:</strong> Faible 🛡️</li>
+            <li><strong style={{color: 'white'}}>Cibles:</strong> {targets.split(',').filter(x => x.trim()).length || 0} comptes</li>
+            <li><strong style={{color: 'white'}}>Actions:</strong> {Object.values(features).filter(Boolean).length} modules actifs</li>
           </ul>
-          <button className="btn-primary" style={{width: '100%', marginTop: '2rem', justifyContent: 'center'}}>
-            Lancer l'Automatisme
+          <button 
+            className="btn-primary" 
+            style={{width: '100%', marginTop: '2rem', justifyContent: 'center'}}
+            onClick={handleLaunch}
+            disabled={loading}
+          >
+            {loading ? 'Lancement en cours...' : success ? '✅ Campagne Lancée !' : 'Lancer l\'Automatisme'}
           </button>
         </div>
       </div>
