@@ -6,82 +6,143 @@ import os, tempfile, time
 
 st.set_page_config(page_title="Social Panel Premium", page_icon="🚀", layout="wide")
 
-# Injection de CSS Moderne (Glassmorphism, Gradients, Animations)
+# Injection du CSS ULTIME (Animations, Gradients mouvants, Glassmorphism avancé)
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Outfit', sans-serif;
     }
     
-    /* Fond global dark premium */
+    /* Animation du fond d'écran */
+    @keyframes gradientBG {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    
+    /* Animation d'entrée des éléments */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Pulsation lumineuse pour les boutons */
+    @keyframes pulseGlow {
+        0% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.4); }
+        50% { box-shadow: 0 0 25px rgba(236, 72, 153, 0.8); }
+        100% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.4); }
+    }
+
+    /* Animation flottante */
+    @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+    }
+
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        background: linear-gradient(-45deg, #0f172a, #1e1b4b, #31103f, #090914);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
         color: white;
     }
     
-    /* Cacher le header et footer Streamlit */
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
+    header, footer {visibility: hidden;}
     
-    /* Style des métriques (Cartes) */
+    /* Application de l'animation d'entrée en cascade */
+    div[data-testid="stVerticalBlock"] > div {
+        animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        opacity: 0;
+    }
+    div[data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: 0.1s; }
+    div[data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: 0.2s; }
+    div[data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: 0.3s; }
+    div[data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: 0.4s; }
+    
+    /* Cartes (Metrics) avec effet Neon & Float */
     div[data-testid="metric-container"] {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        border-radius: 15px;
-        padding: 20px;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(16px);
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        animation: float 6s ease-in-out infinite;
     }
+    /* Décalage temporel pour le flottement des cartes */
+    div[data-testid="metric-container"]:nth-child(odd) { animation-delay: 1s; }
+    
     div[data-testid="metric-container"]:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 40px 0 rgba(139, 92, 246, 0.3);
-        border: 1px solid rgba(139, 92, 246, 0.5);
+        transform: translateY(-10px) scale(1.03);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(236, 72, 153, 0.5);
+        box-shadow: 0 20px 40px -10px rgba(236, 72, 153, 0.4);
     }
     
-    /* Style des boutons Primary */
+    /* Boutons Primaires Ultra Modernes */
     button[kind="primary"] {
-        background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%) !important;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%) !important;
         color: white !important;
         border: none !important;
-        border-radius: 8px !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.5px !important;
+        border-radius: 12px !important;
+        font-weight: 800 !important;
+        text-transform: uppercase;
+        letter-spacing: 1.5px !important;
+        padding: 10px 24px !important;
         transition: all 0.3s ease !important;
-        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4) !important;
+        animation: pulseGlow 3s infinite;
     }
     button[kind="primary"]:hover {
-        transform: scale(1.02);
-        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6) !important;
+        transform: translateY(-3px) scale(1.05);
+        background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%) !important;
+        box-shadow: 0 10px 30px rgba(236, 72, 153, 0.8) !important;
     }
     
-    /* Inputs et Selects */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
-        background: rgba(0, 0, 0, 0.2) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    /* Inputs avec lueur */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stTextArea textarea {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border: 1px solid rgba(139, 92, 246, 0.3) !important;
         color: white !important;
-        border-radius: 8px !important;
+        border-radius: 10px !important;
+        transition: all 0.3s ease;
     }
-    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within {
-        border-color: #8b5cf6 !important;
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2) !important;
+    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within, .stTextArea textarea:focus {
+        border-color: #ec4899 !important;
+        box-shadow: 0 0 15px rgba(236, 72, 153, 0.3) !important;
+        transform: translateY(-2px);
     }
     
     /* Sidebar */
     section[data-testid="stSidebar"] {
-        background: rgba(15, 23, 42, 0.8) !important;
-        backdrop-filter: blur(20px) !important;
+        background: rgba(10, 10, 20, 0.85) !important;
+        backdrop-filter: blur(25px) !important;
         border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
     
-    /* Titres avec gradient */
-    h1 {
-        background: -webkit-linear-gradient(45deg, #a78bfa, #38bdf8);
+    /* Titres avec gradient animé */
+    h1, h2, h3 {
+        background: linear-gradient(to right, #a78bfa, #f472b6, #38bdf8);
+        background-size: 200% auto;
+        color: #000;
+        background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        animation: gradientBG 4s linear infinite;
         font-weight: 800 !important;
+    }
+    
+    /* Customiser les onglets */
+    button[data-baseweb="tab"] {
+        background: transparent !important;
+        border: none !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: rgba(139, 92, 246, 0.2) !important;
+        border-radius: 8px !important;
+        border-bottom: 3px solid #ec4899 !important;
     }
 </style>
 """, unsafe_allow_html=True)
