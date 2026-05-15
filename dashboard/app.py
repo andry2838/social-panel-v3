@@ -6,6 +6,86 @@ import os, tempfile, time
 
 st.set_page_config(page_title="Social Panel Premium", page_icon="🚀", layout="wide")
 
+# Injection de CSS Moderne (Glassmorphism, Gradients, Animations)
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Fond global dark premium */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        color: white;
+    }
+    
+    /* Cacher le header et footer Streamlit */
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    
+    /* Style des métriques (Cartes) */
+    div[data-testid="metric-container"] {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    div[data-testid="metric-container"]:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px 0 rgba(139, 92, 246, 0.3);
+        border: 1px solid rgba(139, 92, 246, 0.5);
+    }
+    
+    /* Style des boutons Primary */
+    button[kind="primary"] {
+        background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.5px !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4) !important;
+    }
+    button[kind="primary"]:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6) !important;
+    }
+    
+    /* Inputs et Selects */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] {
+        background: rgba(0, 0, 0, 0.2) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: white !important;
+        border-radius: 8px !important;
+    }
+    .stTextInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within {
+        border-color: #8b5cf6 !important;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2) !important;
+    }
+    
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background: rgba(15, 23, 42, 0.8) !important;
+        backdrop-filter: blur(20px) !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    /* Titres avec gradient */
+    h1 {
+        background: -webkit-linear-gradient(45deg, #a78bfa, #38bdf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 default_api_url = os.environ.get("API_URL", "http://localhost:8000/api/v1")
 API_URL = st.sidebar.text_input("API URL", default_api_url)
 
