@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Home, Users, Target, Calendar, MessageCircle, Rocket, TrendingUp, Settings, Heart, Plus } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Home, Users, Target, Calendar, MessageCircle, Rocket, TrendingUp, Settings, Heart, Plus, FileText, Download } from 'lucide-react'
 import './App.css'
 
 function App() {
@@ -66,6 +66,17 @@ function App() {
 }
 
 function DashboardView() {
+  const [campaigns, setCampaigns] = useState([])
+
+  useEffect(() => {
+    fetch('/api/v1/campaigns')
+      .then(res => res.json())
+      .then(data => {
+        if(data.campaigns) setCampaigns(data.campaigns)
+      })
+      .catch(err => console.error(err))
+  }, [])
+
   return (
     <div className="fade-in">
       <div className="header-wrapper">
@@ -73,8 +84,8 @@ function DashboardView() {
           <h1 className="page-title">Bienvenue, Boss 🚀</h1>
           <p style={{color: 'var(--text-muted)'}}>Voici les performances globales de tes comptes aujourd'hui.</p>
         </div>
-        <button className="btn-primary">
-          <Plus size={18} /> Nouvelle Campagne
+        <button className="btn-primary" onClick={() => window.location.reload()}>
+          <TrendingUp size={18} /> Actualiser
         </button>
       </div>
 
@@ -94,13 +105,37 @@ function DashboardView() {
           <div className="metric-value">45,892</div>
         </div>
         <div className="glass-card stagger-4">
-          <div className="metric-title"><Rocket size={16} color="#10b981"/> Comptes Connectés</div>
-          <div className="metric-value">12 <span style={{fontSize:'1rem', color:'var(--text-muted)'}}>(Illimité)</span></div>
+          <div className="metric-title"><FileText size={16} color="#10b981"/> Campagnes Lancées</div>
+          <div className="metric-value">{campaigns.length}</div>
         </div>
       </div>
       
-      <div className="glass-card" style={{height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <p style={{color: 'var(--text-muted)'}}>Graphique de croissance interactive (Recharts ou Chart.js sera injecté ici)</p>
+      <h2 style={{fontSize: '1.5rem', marginBottom: '1.5rem', marginTop: '3rem'}}>Dernières Campagnes & Rapports PDF</h2>
+      <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+        {campaigns.length === 0 ? (
+          <div className="glass-card" style={{textAlign: 'center', padding: '3rem'}}>
+            <p style={{color: 'var(--text-muted)'}}>Aucune campagne en cours. Va dans l'onglet "Campagnes IA" pour en lancer une !</p>
+          </div>
+        ) : (
+          campaigns.map(camp => (
+            <div key={camp.id} className="glass-card stagger-1" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              <div>
+                <h3 style={{fontSize: '1.2rem', marginBottom: '5px'}}>{camp.name}</h3>
+                <p style={{color: 'var(--text-muted)', fontSize: '0.9rem'}}>Statut: <span style={{color: camp.status === 'running' ? '#38bdf8' : '#10b981'}}>{camp.status.toUpperCase()}</span> | Type: {camp.type}</p>
+              </div>
+              <a 
+                href={`/api/v1/reports/${camp.id}/download?agency_name=BoostPanel+Agency`} 
+                target="_blank"
+                rel="noreferrer"
+                style={{textDecoration: 'none'}}
+              >
+                <button className="btn-primary" style={{background: 'linear-gradient(135deg, #10b981, #059669)'}}>
+                  <Download size={18} /> Télécharger le PDF Marque Blanche
+                </button>
+              </a>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )
