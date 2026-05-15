@@ -30,6 +30,7 @@ class AccountCreate(BaseModel):
     platform: str = "instagram"
     proxy: Optional[str] = None
     tags: Optional[List[str]] = None
+    two_factor_seed: Optional[str] = None
 
 class CampaignCreate(BaseModel):
     account_id: str
@@ -76,7 +77,7 @@ def add_account(acct: AccountCreate):
     mgr = get_manager()
     if mgr.get_by_username(acct.username):
         raise HTTPException(400, "Ce username existe déjà")
-    new = mgr.add_account(acct.username, acct.password, acct.platform, acct.proxy, acct.tags)
+    new = mgr.add_account(acct.username, acct.password, acct.platform, acct.proxy, acct.tags, acct.two_factor_seed)
     return {k: v for k, v in new.items() if k != "password"}
 
 

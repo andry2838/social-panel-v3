@@ -64,7 +64,8 @@ class AccountManager:
     def add_account(self, username: str, password: str,
                     platform: str = "instagram",
                     proxy: Optional[str] = None,
-                    tags: Optional[list] = None) -> dict:
+                    tags: Optional[list] = None,
+                    two_factor_seed: Optional[str] = None) -> dict:
         """Ajoute un compte. platform: instagram|threads|twitter"""
         account = {
             "id": len(self.accounts) + 1,
@@ -73,6 +74,7 @@ class AccountManager:
             "platform": platform,
             "proxy": proxy,
             "tags": tags or [],
+            "two_factor_seed": two_factor_seed,
             "active": True,
             "created_at": datetime.now().isoformat(),
             "last_login": None,

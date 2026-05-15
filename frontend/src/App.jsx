@@ -142,11 +142,73 @@ function DashboardView() {
 }
 
 function AccountsView() {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [twoFactorSeed, setTwoFactorSeed] = useState('')
+  const [proxy, setProxy] = useState('')
+  const [status, setStatus] = useState('')
+
+  const handleConnect = async () => {
+    setStatus('Connexion en cours...')
+    try {
+      const res = await fetch('/api/v1/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          password,
+          two_factor_seed: twoFactorSeed || null,
+          proxy: proxy || null,
+          platform: 'instagram'
+        })
+      })
+      if (res.ok) {
+        setStatus('✅ Compte ajouté avec succès !')
+        setUsername('')
+        setPassword('')
+        setTwoFactorSeed('')
+        setProxy('')
+      } else {
+        setStatus('❌ Erreur lors de l\'ajout')
+      }
+    } catch (e) {
+      setStatus('❌ Erreur réseau')
+    }
+  }
+
   return (
     <div className="fade-in">
       <h1 className="page-title" style={{marginBottom: '2rem'}}>Comptes Connectés ♾️</h1>
-      <div className="glass-card">
-        <p style={{color: 'var(--text-muted)'}}>Interface de gestion des proxies et des sessions Instagram en cours de construction avec les vraies données de l'API.</p>
+      
+      <div className="glass-card" style={{maxWidth: '600px'}}>
+        <h2 style={{fontSize: '1.2rem', marginBottom: '1.5rem'}}>Connecter un nouveau compte Instagram</h2>
+        
+        <div className="input-group">
+          <label className="input-label">Nom d'utilisateur</label>
+          <input className="modern-input" type="text" value={username} onChange={e => setUsername(e.target.value)} />
+        </div>
+        
+        <div className="input-group">
+          <label className="input-label">Mot de passe</label>
+          <input className="modern-input" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+        </div>
+        
+        <div className="input-group">
+          <label className="input-label">Clé secrète 2FA (Optionnel mais recommandé)</label>
+          <input className="modern-input" type="text" placeholder="Ex: JBSWY3DPEHPK3PXP" value={twoFactorSeed} onChange={e => setTwoFactorSeed(e.target.value)} />
+          <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px'}}>La clé utilisée par Google Authenticator (TOTP Seed).</p>
+        </div>
+        
+        <div className="input-group">
+          <label className="input-label">Proxy (Optionnel)</label>
+          <input className="modern-input" type="text" placeholder="http://user:pass@ip:port" value={proxy} onChange={e => setProxy(e.target.value)} />
+        </div>
+        
+        <button className="btn-primary" onClick={handleConnect} style={{width: '100%', justifyContent: 'center', marginTop: '1rem'}}>
+          Connecter le compte
+        </button>
+        
+        {status && <p style={{marginTop: '1rem', textAlign: 'center', color: status.includes('✅') ? '#10b981' : '#ec4899'}}>{status}</p>}
       </div>
     </div>
   )

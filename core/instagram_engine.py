@@ -8,7 +8,8 @@ import os
 import requests
 from typing import Optional, List, Dict
 from instagrapi import Client
-from instagrapi.exceptions import ChallengeRequired, FeedbackRequired
+import pyotp
+from instagrapi.exceptions import ChallengeRequired, FeedbackRequired, TwoFactorRequired
 from .human_simulator import HumanSimulator
 
 class InstagramEngine:
@@ -43,6 +44,23 @@ class InstagramEngine:
             cl.dump_settings(session_path)
             self.clients[aid] = cl
             return cl
+        except TwoFactorRequired:
+            print(f"⚠️ 2FA requis pour {account['username']}")
+            two_factor_seed = account.get("two_factor_seed") or account.get("tags", [None])[0] # Fallback if stored in tags
+            if two_factor_seed and len(two_factor_seed) > 10:
+                try:
+                    totp = pyotp.TOTP(two_factor_seed.replace(" ", "").upper())
+                    code = totp.now()
+                    cl.two_factor_login(code)
+                    cl.dump_settings(session_path)
+                    self.clients[aid] = cl
+                    return cl
+                except Exception as e:
+                    print(f"❌ Erreur 2FA PyOTP: {e}")
+                    return None
+            else:
+                print("❌ Echec 2FA: Pas de clé secrète (TOTP Seed) configurée.")
+                return None
         except ChallengeRequired:
             print(f"⚠️ Challenge requis pour {account['username']}")
             return None
