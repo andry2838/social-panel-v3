@@ -48,6 +48,9 @@ class AccountManager:
                     data = json.load(f)
                     if data.get("password_encrypted"):
                         data["password"] = self._decrypt(data["password_encrypted"])
+                    # Déchiffrement du seed 2FA
+                    if data.get("two_factor_seed_encrypted"):
+                        data["two_factor_seed"] = self._decrypt(data["two_factor_seed_encrypted"])
                     accounts.append(data)
             except Exception as e:
                 print(f"⚠️  Erreur {file.name}: {e}")
@@ -58,6 +61,10 @@ class AccountManager:
         data = account.copy()
         data["password_encrypted"] = self._encrypt(account["password"])
         data.pop("password", None)
+        # Chiffre aussi la clé 2FA si présente
+        if account.get("two_factor_seed"):
+            data["two_factor_seed_encrypted"] = self._encrypt(account["two_factor_seed"])
+            data.pop("two_factor_seed", None)
         with open(path, 'w') as f:
             json.dump(data, f, indent=2, default=str)
 
@@ -71,10 +78,10 @@ class AccountManager:
             "id": len(self.accounts) + 1,
             "username": username,
             "password": password,
+            "two_factor_seed": two_factor_seed or "",  # Clé TOTP secret pour 2FA
             "platform": platform,
             "proxy": proxy,
             "tags": tags or [],
-            "two_factor_seed": two_factor_seed,
             "active": True,
             "created_at": datetime.now().isoformat(),
             "last_login": None,
@@ -86,7 +93,7 @@ class AccountManager:
         }
         self.accounts.append(account)
         self._save(account)
-        print(f"✅ #{account['id']} {username} ({platform}) ajouté")
+        print(f"✅ #{account['id']} {username} ({platform}) ajouté {'[2FA]' if two_factor_seed else ''}")
         return account
 
     def remove_account(self, account_id: int):
@@ -168,7 +175,8 @@ class AccountManager:
                     password=row["password"],
                     platform=row.get("platform", "instagram"),
                     proxy=row.get("proxy") or None,
-                    tags=tags
+                    tags=tags,
+                    two_factor_seed=row.get("2fa_seed") or row.get("two_factor_seed") or None
                 )
                 count += 1
         return count

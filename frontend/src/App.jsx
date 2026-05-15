@@ -142,73 +142,140 @@ function DashboardView() {
 }
 
 function AccountsView() {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [twoFactorSeed, setTwoFactorSeed] = useState('')
-  const [proxy, setProxy] = useState('')
-  const [status, setStatus] = useState('')
+  const [form, setForm] = useState({
+    username: '', password: '', platform: 'instagram',
+    proxy: '', two_factor_seed: '', tags: ''
+  })
+  const [accounts, setAccounts] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [msg, setMsg] = useState(null)
 
-  const handleConnect = async () => {
-    setStatus('Connexion en cours...')
+  useEffect(() => {
+    fetch('/api/v1/accounts')
+      .then(res => res.json())
+      .then(data => { if(data.accounts) setAccounts(data.accounts) })
+      .catch(console.error)
+  }, [])
+
+  const handleAdd = async () => {
+    setLoading(true)
+    setMsg(null)
     try {
+      const payload = {
+        username: form.username,
+        password: form.password,
+        platform: form.platform,
+        proxy: form.proxy || null,
+        two_factor_seed: form.two_factor_seed || null,
+        tags: form.tags ? form.tags.split(',').map(t => t.trim()) : []
+      }
       const res = await fetch('/api/v1/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username,
-          password,
-          two_factor_seed: twoFactorSeed || null,
-          proxy: proxy || null,
-          platform: 'instagram'
-        })
+        body: JSON.stringify(payload)
       })
+      const data = await res.json()
       if (res.ok) {
-        setStatus('✅ Compte ajouté avec succès !')
-        setUsername('')
-        setPassword('')
-        setTwoFactorSeed('')
-        setProxy('')
+        setMsg({ type: 'success', text: `✅ Compte @${data.username} ajouté avec succès !` })
+        setAccounts(prev => [...prev, data])
+        setForm({ username: '', password: '', platform: 'instagram', proxy: '', two_factor_seed: '', tags: '' })
       } else {
-        setStatus('❌ Erreur lors de l\'ajout')
+        setMsg({ type: 'error', text: `❌ Erreur: ${data.detail}` })
       }
-    } catch (e) {
-      setStatus('❌ Erreur réseau')
-    }
+    } catch(e) { setMsg({ type: 'error', text: `❌ Erreur réseau` }) }
+    setLoading(false)
   }
 
   return (
     <div className="fade-in">
       <h1 className="page-title" style={{marginBottom: '2rem'}}>Comptes Connectés ♾️</h1>
-      
-      <div className="glass-card" style={{maxWidth: '600px'}}>
-        <h2 style={{fontSize: '1.2rem', marginBottom: '1.5rem'}}>Connecter un nouveau compte Instagram</h2>
-        
-        <div className="input-group">
-          <label className="input-label">Nom d'utilisateur</label>
-          <input className="modern-input" type="text" value={username} onChange={e => setUsername(e.target.value)} />
+
+      <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '3rem'}}>
+        {/* Formulaire d'ajout */}
+        <div className="glass-card">
+          <h2 style={{fontSize: '1.2rem', marginBottom: '1.5rem'}}>➕ Ajouter un Compte</h2>
+
+          {msg && (
+            <div style={{padding: '0.8rem', borderRadius: '8px', marginBottom: '1rem',
+              background: msg.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(236, 72, 153, 0.15)',
+              border: `1px solid ${msg.type === 'success' ? '#10b981' : '#ec4899'}`,
+              color: msg.type === 'success' ? '#10b981' : '#ec4899'}}>
+              {msg.text}
+            </div>
+          )}
+
+          <div className="input-group">
+            <label className="input-label">Plateforme</label>
+            <select className="modern-input" value={form.platform}
+              onChange={e => setForm({...form, platform: e.target.value})}
+              style={{background: 'rgba(15,23,42,0.5)', color: 'white', border: '1px solid rgba(139,92,246,0.3)'}}>
+              <option value="instagram">📸 Instagram</option>
+              <option value="threads">🧵 Threads</option>
+              <option value="twitter">🐦 Twitter/X</option>
+            </select>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Nom d'utilisateur</label>
+            <input className="modern-input" type="text" placeholder="@mon_compte_ig"
+              value={form.username} onChange={e => setForm({...form, username: e.target.value})} />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Mot de passe</label>
+            <input className="modern-input" type="password" placeholder="••••••••"
+              value={form.password} onChange={e => setForm({...form, password: e.target.value})} />
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">🔐 Code Secret 2FA (TOTP Seed) <span style={{color:'#ec4899'}}>Optionnel</span></label>
+            <input className="modern-input" type="text" 
+              placeholder="Ex: JBSWY3DPEHPK3PXP (depuis Google Authenticator)"
+              value={form.two_factor_seed} onChange={e => setForm({...form, two_factor_seed: e.target.value})} />
+            <small style={{color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block'}}>
+              Dans Instagram → Paramètres → Authentification à deux facteurs → App d'authentification → Clé manuelle
+            </small>
+          </div>
+
+          <div className="input-group">
+            <label className="input-label">Proxy <span style={{color:'var(--text-muted)'}}>Optionnel</span></label>
+            <input className="modern-input" type="text" placeholder="http://user:pass@ip:port"
+              value={form.proxy} onChange={e => setForm({...form, proxy: e.target.value})} />
+          </div>
+
+          <button className="btn-primary" style={{width: '100%', justifyContent: 'center', marginTop: '0.5rem'}}
+            onClick={handleAdd} disabled={loading || !form.username || !form.password}>
+            {loading ? 'Connexion en cours...' : '🔌 Connecter le Compte'}
+          </button>
         </div>
-        
-        <div className="input-group">
-          <label className="input-label">Mot de passe</label>
-          <input className="modern-input" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+
+        {/* Liste des comptes */}
+        <div className="glass-card" style={{overflowY: 'auto', maxHeight: '500px'}}>
+          <h2 style={{fontSize: '1.2rem', marginBottom: '1.5rem'}}>📋 Comptes Enregistrés ({accounts.length})</h2>
+          {accounts.length === 0 ? (
+            <p style={{color: 'var(--text-muted)', textAlign: 'center', padding: '2rem'}}>Aucun compte connecté</p>
+          ) : (
+            accounts.map(acc => (
+              <div key={acc.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '0.8rem', marginBottom: '0.8rem', borderRadius: '10px',
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)'}}>
+                <div>
+                  <div style={{fontWeight: '600'}}>@{acc.username}</div>
+                  <div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>
+                    {acc.platform} · {acc.two_factor_seed ? '🔐 2FA Activé' : '⚠️ Sans 2FA'}
+                  </div>
+                </div>
+                <div style={{
+                  padding: '3px 10px', borderRadius: '20px', fontSize: '0.75rem',
+                  background: acc.status === 'active' ? 'rgba(16,185,129,0.2)' : 'rgba(236,72,153,0.2)',
+                  color: acc.status === 'active' ? '#10b981' : '#ec4899'
+                }}>
+                  {acc.status || 'pending'}
+                </div>
+              </div>
+            ))
+          )}
         </div>
-        
-        <div className="input-group">
-          <label className="input-label">Clé secrète 2FA (Optionnel mais recommandé)</label>
-          <input className="modern-input" type="text" placeholder="Ex: JBSWY3DPEHPK3PXP" value={twoFactorSeed} onChange={e => setTwoFactorSeed(e.target.value)} />
-          <p style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '5px'}}>La clé utilisée par Google Authenticator (TOTP Seed).</p>
-        </div>
-        
-        <div className="input-group">
-          <label className="input-label">Proxy (Optionnel)</label>
-          <input className="modern-input" type="text" placeholder="http://user:pass@ip:port" value={proxy} onChange={e => setProxy(e.target.value)} />
-        </div>
-        
-        <button className="btn-primary" onClick={handleConnect} style={{width: '100%', justifyContent: 'center', marginTop: '1rem'}}>
-          Connecter le compte
-        </button>
-        
-        {status && <p style={{marginTop: '1rem', textAlign: 'center', color: status.includes('✅') ? '#10b981' : '#ec4899'}}>{status}</p>}
       </div>
     </div>
   )
