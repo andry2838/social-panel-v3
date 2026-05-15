@@ -1,0 +1,16 @@
+# Fichiers de configuration locaux
+.env
+
+# Dossiers générés
+__pycache__/
+*.pyc
+logs/
+accounts/
+
+# Environnement virtuel
+venv/
+env/
+.venv/
+
+# Clés secrètes
+.master_key
