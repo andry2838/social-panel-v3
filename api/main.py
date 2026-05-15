@@ -8,6 +8,12 @@ app = FastAPI(
     version="3.0.0"
 )
 
+# Initialisation de la base de données
+from core.database import engine, Base
+import core.models
+
+Base.metadata.create_all(bind=engine)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
