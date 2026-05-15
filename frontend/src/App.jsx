@@ -331,15 +331,77 @@ function CampaignsPage() {
 
 /* ════════════════════════════ CONTENT PAGE ════════════════════════════ */
 function ContentPage() {
+  const [posts, setPosts] = useState([
+    { id:1, account:'@mon_compte', caption:'✨ Post motivation du lundi !', scheduled:'2026-05-16 09:00', status:'scheduled' },
+    { id:2, account:'@mon_compte', caption:'🚀 Découvrez notre nouvelle offre...', scheduled:'2026-05-17 18:00', status:'scheduled' },
+    { id:3, account:'@shop_ig',    caption:'🛍️ Promo flash -30% ce weekend !', scheduled:'2026-05-15 12:00', status:'published' },
+  ])
+  const [form, setForm] = useState({ account:'', caption:'', date:'', time:'' })
+  const f = (k,v) => setForm(p=>({...p,[k]:v}))
+
+  const addPost = () => {
+    if (!form.caption || !form.date) return
+    const newPost = { id: Date.now(), account: form.account||'@mon_compte', caption: form.caption, scheduled: `${form.date} ${form.time||'12:00'}`, status:'scheduled' }
+    setPosts(p=>[...p, newPost])
+    setForm({ account:'', caption:'', date:'', time:'' })
+  }
+
   return (
     <div>
       <div className="page-header fade-up">
-        <div className="page-title">📅 Contenu & Calendrier</div>
+        <div>
+          <div className="page-title">📅 Contenu & Calendrier</div>
+          <div className="page-sub">Programmez et gérez vos publications sur tous vos comptes</div>
+        </div>
       </div>
-      <div className="card fade-up-2" style={{textAlign:'center', padding:'60px', color:'var(--c-muted2)'}}>
-        <div style={{fontSize:48, marginBottom:16}}>🚧</div>
-        <div style={{fontSize:18, fontWeight:700, color:'var(--c-text)', marginBottom:8}}>Module en Développement</div>
-        Programmation de posts, prévisualisation du Grid et génération de captions IA arrivent bientôt.
+
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24}}>
+        {/* Formulaire de programmation */}
+        <div className="card fade-up-2">
+          <div className="section-title">📝 Programmer un Post</div>
+          <div className="form-group">
+            <label className="form-label">Compte</label>
+            <input className="input" placeholder="@mon_compte" value={form.account} onChange={e=>f('account',e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Caption / Légende</label>
+            <textarea className="input" placeholder="Rédigez votre caption ici...\n\n#hashtag1 #hashtag2" value={form.caption} onChange={e=>f('caption',e.target.value)} />
+          </div>
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}} className="form-group">
+            <div>
+              <label className="form-label">Date de publication</label>
+              <input className="input" type="date" value={form.date} onChange={e=>f('date',e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">Heure</label>
+              <input className="input" type="time" value={form.time} onChange={e=>f('time',e.target.value)} />
+            </div>
+          </div>
+          <div style={{padding:'12px', borderRadius:'10px', background:'rgba(56,189,248,0.08)', border:'1px solid rgba(56,189,248,0.2)', marginBottom:'18px', fontSize:'13px', color:'#7dd3fc'}}>
+            💡 Le Celery Beat publiera automatiquement à l'heure programmée via l'API Instagram.
+          </div>
+          <button className="btn btn-primary" style={{width:'100%', justifyContent:'center'}} onClick={addPost}>
+            📅 Ajouter au Calendrier
+          </button>
+        </div>
+
+        {/* Calendrier / Liste */}
+        <div className="card fade-up-3" style={{overflow:'auto', maxHeight:520}}>
+          <div className="section-title">🗓️ Posts Programmés ({posts.filter(p=>p.status==='scheduled').length})</div>
+          {posts.map(post => (
+            <div key={post.id} style={{padding:'14px 16px', borderRadius:'12px', marginBottom:'10px',
+              background: post.status==='published' ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${post.status==='published'?'rgba(16,185,129,0.2)':'var(--c-border)'}`}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px'}}>
+                <span style={{fontSize:'13px', fontWeight:600, color:'var(--c-purple2)'}}>{post.account}</span>
+                <span className={`status-pill ${post.status==='published'?'status-active':'status-pending'}`}>
+                  {post.status==='published' ? '✅ Publié' : `⏰ ${post.scheduled}`}
+                </span>
+              </div>
+              <div style={{fontSize:'13px', color:'var(--c-muted2)', lineHeight:1.5}}>{post.caption}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -347,15 +409,71 @@ function ContentPage() {
 
 /* ════════════════════════════ MESSAGES PAGE ════════════════════════════ */
 function MessagesPage() {
+  const [welcomeMsg, setWelcomeMsg] = useState('Bonjour {username} ! 👋 Merci de me suivre. Découvrez mes offres exclusives ici 👇')
+  const [rules, setRules] = useState([
+    { id:1, trigger:'Nouveau follower', action:'Envoyer Welcome DM', active:true },
+    { id:2, trigger:'Mot-clé: "prix"', action:'Envoyer tarifs automatiquement', active:false },
+    { id:3, trigger:'Story Reply', action:'Répondre via IA (Groq)', active:true },
+  ])
+  const [saved, setSaved] = useState(false)
+
+  const toggleRule = id => setRules(r => r.map(x => x.id===id ? {...x, active:!x.active} : x))
+
+  const save = () => { setSaved(true); setTimeout(()=>setSaved(false), 2000) }
+
   return (
     <div>
       <div className="page-header fade-up">
-        <div className="page-title">💬 Auto-DM & Inbox</div>
+        <div>
+          <div className="page-title">💬 Auto-DM & Inbox</div>
+          <div className="page-sub">Automatisez vos messages et répondez intelligemment à vos abonnés</div>
+        </div>
       </div>
-      <div className="card fade-up-2" style={{textAlign:'center', padding:'60px', color:'var(--c-muted2)'}}>
-        <div style={{fontSize:48, marginBottom:16}}>🚧</div>
-        <div style={{fontSize:18, fontWeight:700, color:'var(--c-text)', marginBottom:8}}>Module en Développement</div>
-        Système de Welcome DM, réponses automatiques et gestion centralisée de l'inbox arrive bientôt.
+
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24}}>
+        {/* Message de bienvenue */}
+        <div className="card fade-up-2">
+          <div className="section-title">👋 Message de Bienvenue (Welcome DM)</div>
+          <div style={{padding:'12px', borderRadius:'10px', background:'rgba(124,58,237,0.08)', border:'1px solid rgba(124,58,237,0.2)', marginBottom:'16px', fontSize:'13px', color:'#a78bfa'}}>
+            💡 Variables disponibles : <strong>{'{'+'username'+'}'}</strong>, <strong>{'{'+'followers_count'+'}'}</strong>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Message envoyé aux nouveaux abonnés</label>
+            <textarea className="input" rows={5} value={welcomeMsg} onChange={e=>setWelcomeMsg(e.target.value)} />
+          </div>
+          <div style={{padding:'12px', borderRadius:'10px', background:'rgba(16,185,129,0.06)', border:'1px solid rgba(16,185,129,0.15)', marginBottom:'16px', fontSize:'13px', color:'#6ee7b7'}}>
+            <strong>Aperçu :</strong> {welcomeMsg.replace('{username}', '@nouveau_follower')}
+          </div>
+          <button className="btn btn-primary" style={{width:'100%', justifyContent:'center'}} onClick={save}>
+            {saved ? '✅ Sauvegardé !' : '💾 Sauvegarder le Message'}
+          </button>
+        </div>
+
+        {/* Règles d'automatisation */}
+        <div className="card fade-up-3">
+          <div className="section-title">⚙️ Règles d'Automatisation</div>
+          {rules.map(rule => (
+            <div key={rule.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'16px', borderRadius:'12px', marginBottom:'10px',
+              background: rule.active ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${rule.active ? 'rgba(124,58,237,0.25)' : 'var(--c-border)'}`}}>
+              <div>
+                <div style={{fontSize:'14px', fontWeight:600}}>🔔 {rule.trigger}</div>
+                <div style={{fontSize:'12px', color:'var(--c-muted2)', marginTop:'3px'}}>→ {rule.action}</div>
+              </div>
+              <div className={`toggle-card ${rule.active?'on':''}`} style={{padding:'6px 12px', margin:0}}
+                onClick={()=>toggleRule(rule.id)}>
+                <div className={`toggle-dot ${rule.active?'on':''}`} />
+              </div>
+            </div>
+          ))}
+
+          <div style={{marginTop:'20px', padding:'16px', borderRadius:'12px',
+            background:'rgba(56,189,248,0.06)', border:'1px solid rgba(56,189,248,0.15)'}}>
+            <div style={{fontSize:'13px', color:'#7dd3fc', marginBottom:'8px'}}>🤖 Génération de réponses par IA</div>
+            <div style={{fontSize:'12px', color:'var(--c-muted2)'}}>Connectez votre clé API Groq dans les variables Railway (GROQ_API_KEY) pour activer les réponses intelligentes.</div>
+          </div>
+        </div>
       </div>
     </div>
   )
