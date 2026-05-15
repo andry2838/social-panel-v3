@@ -1,22 +1,26 @@
-from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Depends
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Dict
 import asyncio
 import tempfile, os
+import uuid
 
 from core.account_manager import get_manager
 from core.instagram_engine import InstagramEngine
 from core.threads_engine import ThreadsEngine
 from core.twitter_engine import TwitterEngine
+from core.database import get_db
+from core.models import Campaign, ActionLog, Account
 from scheduler.tasks import (
     routine_instagram, routine_threads, routine_twitter,
-    bulk_action_instagram, bulk_action_twitter
+    bulk_action_instagram, bulk_action_twitter, execute_smart_campaign
 )
 
 router = APIRouter(prefix="/api/v1")
 
 
-# --- Modèles ---
+# --- Modèles Pydantic ---
 
 class AccountCreate(BaseModel):
     username: str
@@ -24,6 +28,15 @@ class AccountCreate(BaseModel):
     platform: str = "instagram"
     proxy: Optional[str] = None
     tags: Optional[List[str]] = None
+
+class CampaignCreate(BaseModel):
+    account_id: str
+    name: str
+    type: str
+    targets: dict
+    features: dict
+    ai_settings: dict
+    activity_settings: dict
 
 class BulkAction(BaseModel):
     account_ids: List[int]
@@ -132,3 +145,33 @@ async def create_post(req: PostCreate):
         result = await engine.post_tweet(acc, req.text)
         return {"status": "posted" if result else "error", "id": result}
     raise HTTPException(400, "Plateforme inconnue")
+
+
+# --- Endpoints Campagnes (Premium) ---
+
+@router.post("/campaigns")
+def create_campaign(camp: CampaignCreate, bg: BackgroundTasks, db: Session = Depends(get_db)):
+    camp_id = str(uuid.uuid4())
+    db_campaign = Campaign(
+        id=camp_id,
+        account_id=camp.account_id,
+        name=camp.name,
+        type=camp.type,
+        targets=camp.targets,
+        features=camp.features,
+        ai_settings=camp.ai_settings,
+        activity_settings=camp.activity_settings,
+        status="running"
+    )
+    db.add(db_campaign)
+    db.commit()
+    
+    # Lancer la campagne en arrière-plan via Celery
+    bg.add_task(execute_smart_campaign, camp_id)
+    
+    return {"status": "success", "campaign_id": camp_id}
+
+@router.get("/campaigns")
+def list_campaigns(db: Session = Depends(get_db)):
+    campaigns = db.query(Campaign).all()
+    return {"campaigns": campaigns}

@@ -10,7 +10,8 @@ from core.instagram_engine import InstagramEngine
 from core.threads_engine import ThreadsEngine
 from core.twitter_engine import TwitterEngine
 from core.human_simulator import HumanSimulator
-
+from core.database import SessionLocal
+from core.models import Campaign, ActionLog
 
 @app.task(bind=True, max_retries=3, default_retry_delay=300)
 def routine_instagram(self, account_id: int):
@@ -141,3 +142,61 @@ def setup_periodic_tasks(sender, **kwargs):
                 routine_twitter.s(account["id"]),
                 name=f"twitter_{account['username']}"
             )
+
+
+@app.task(bind=True)
+def execute_smart_campaign(self, campaign_id: str):
+    """Exécute une campagne premium avec les features avancées (Phase 2)."""
+    db = SessionLocal()
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    
+    if not campaign or campaign.status != "running":
+        db.close()
+        return {"status": "skipped"}
+        
+    mgr = get_manager()
+    # Recherche du compte dans le JSON
+    account = None
+    for acc in mgr.accounts:
+        if str(acc["id"]) == str(campaign.account_id) or acc["username"] == campaign.account_id:
+            account = acc
+            break
+            
+    if not account:
+        db.close()
+        return {"status": "error", "reason": "Account not found in JSON manager"}
+        
+    engine = InstagramEngine()
+    features = campaign.features or {}
+    targets = campaign.targets or {}
+    ai_settings = campaign.ai_settings or {}
+    
+    competitors = targets.get("competitors", [])
+    allowed_langs = ai_settings.get("lang_filter", [])
+    
+    results = {}
+    
+    try:
+        for competitor in competitors:
+            # 1. Mass Looking & Story Interacting
+            if features.get("story_interactions"):
+                res = engine.mass_look_and_interact_stories(account, competitor.replace('@', ''))
+                results[f"story_{competitor}"] = res
+                HumanSimulator.pause("between")
+                
+            # 2. Smart Follow Loop
+            if features.get("smart_follow"):
+                res = engine.smart_follow_loop(account, competitor.replace('@', ''), allowed_langs)
+                results[f"follow_{competitor}"] = res
+                HumanSimulator.pause("between")
+                
+        # Update campaign status
+        campaign.status = "completed"
+        db.commit()
+    except Exception as e:
+        campaign.status = f"error: {str(e)}"
+        db.commit()
+    finally:
+        db.close()
+        
+    return results
