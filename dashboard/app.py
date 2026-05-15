@@ -48,7 +48,16 @@ if page == "🏠 Vue d'ensemble":
     c1.metric("👥 Nouveaux Followers (30j)", "+ 1,240", "12%")
     c2.metric("❤️ Engagement (30j)", "14.2K", "8%")
     c3.metric("🎯 Actions Réalisées", "45,892")
-    c4.metric("📱 Comptes Actifs", "8 / 10")
+    
+    # Calculate real active accounts or fake it for demo
+    total_accs = "0"
+    try:
+        data = api_get("/stats")
+        if data:
+            total_accs = str(data.get("active", 8))
+    except:
+        pass
+    c4.metric("📱 Comptes Actifs", f"{total_accs} (Illimité)")
 
     st.markdown("---")
     c_left, c_right = st.columns(2)
@@ -66,7 +75,7 @@ if page == "🏠 Vue d'ensemble":
 
 # --- COMPTES ---
 elif page == "📋 Comptes":
-    st.title("📋 Gestion des comptes (Limite: 10)")
+    st.title("📋 Gestion des comptes (Illimité) ♾️")
     data = api_get("/accounts")
     if data and "accounts" in data:
         df = pd.DataFrame(data["accounts"])
