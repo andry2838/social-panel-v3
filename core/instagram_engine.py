@@ -1,33 +1,38 @@
 """
-Moteur Instagram via Instagrapi.
+Moteur Instagram Extrême via Instagrapi.
+Intègre les fonctionnalités SaaS Premium : Vues de masse, interactions de Story,
+likes multi-niveaux, commentaires IA et filtrage de langues.
 """
 import random
-from typing import Optional, List
+import os
+import requests
+from typing import Optional, List, Dict
 from instagrapi import Client
 from instagrapi.exceptions import ChallengeRequired, FeedbackRequired
-from .account_manager import get_manager
 from .human_simulator import HumanSimulator
-
 
 class InstagramEngine:
     def __init__(self):
         self.clients = {}
 
     def get_client(self, account: dict) -> Optional[Client]:
-        aid = account["id"]
+        aid = account.get("id")
         if aid in self.clients:
             return self.clients[aid]
 
         cl = Client()
-        cl.delay_range = [1, 3]
+        # Gestionnaire de temps aléatoire injecté directement dans le client
+        cl.delay_range = [2, 5] 
+        
         cl.set_user_agent(
             "Instagram 289.0.0.77.109 Android (33/13; 420dpi; 1080x2400; "
             "OnePlus; ONEPLUS+A6003; OnePlus6; qcom; fr_FR; 482756178)"
         )
+        
         if account.get("proxy"):
             cl.set_proxy(account["proxy"])
 
-        session_path = f"accounts/session_ig_{account['username']}.json"
+        session_path = f"accounts/session_ig_{account.get('username')}.json"
         try:
             cl.load_settings(session_path)
         except:
@@ -36,114 +41,166 @@ class InstagramEngine:
         try:
             cl.login(account["username"], account["password"])
             cl.dump_settings(session_path)
-            mgr = get_manager()
-            mgr.set_status(aid, "active")
             self.clients[aid] = cl
             return cl
         except ChallengeRequired:
-            get_manager().set_status(aid, "challenge", "Challenge requis")
+            print(f"⚠️ Challenge requis pour {account['username']}")
             return None
         except FeedbackRequired:
-            get_manager().set_status(aid, "banned", "Temp ban")
+            print(f"⚠️ Temp ban pour {account['username']}")
             return None
         except Exception as e:
-            print(f"⚠️  IG login {account['username']}: {e}")
+            print(f"⚠️ IG login {account['username']}: {e}")
             return None
 
-    def like_from_hashtag(self, account: dict, hashtag: str, amount: int = 5) -> int:
+    # --- MODULE 1 : STORY ACTIONS (Engagement Extrême) ---
+
+    def mass_look_and_interact_stories(self, account: dict, target_user: str) -> dict:
+        """Visionne les stories d'un utilisateur et interagit avec les stickers (Sondages, Sliders)."""
+        cl = self.get_client(account)
+        if not cl:
+            return {"status": "error"}
+            
+        stats = {"viewed": 0, "liked": 0, "polls_voted": 0, "sliders_voted": 0}
+        
+        try:
+            user_id = cl.user_id_from_username(target_user)
+            stories = cl.user_stories(user_id)
+            
+            for story in stories:
+                # Visionnage (Mass Looking)
+                cl.story_view([story.pk])
+                stats["viewed"] += 1
+                HumanSimulator.pause("scroll")
+                
+                # Story Like
+                if HumanSimulator.should_act(0.3): # 30% de chance de liker
+                    cl.story_like(story.pk)
+                    stats["liked"] += 1
+                
+                # Interactions avec les Stickers (Sondages, Sliders)
+                if hasattr(story, 'story_polls') and story.story_polls:
+                    for poll in story.story_polls:
+                        if HumanSimulator.should_act(0.8): # 80% de chance de voter
+                            # Vote aléatoire (0 ou 1)
+                            cl.story_poll_vote(story.pk, poll.poll_id, random.choice([0, 1]))
+                            stats["polls_voted"] += 1
+                            HumanSimulator.pause("like")
+                            
+                if hasattr(story, 'story_sliders') and story.story_sliders:
+                    for slider in story.story_sliders:
+                        if HumanSimulator.should_act(0.8):
+                            # Curseur aléatoire entre 50% et 100%
+                            cl.story_slider_vote(story.pk, slider.slider_id, random.uniform(0.5, 1.0))
+                            stats["sliders_voted"] += 1
+                            HumanSimulator.pause("like")
+                            
+        except Exception as e:
+            print(f"⚠️ Erreur Story Interaction: {e}")
+            
+        return stats
+
+    # --- MODULE 2 : FEED & COMMENTS (Engagement Ciblé) ---
+
+    def like_top_comments(self, account: dict, target_media_id: str, amount: int = 3) -> int:
+        """Likes multi-niveaux : Aime les meilleurs commentaires sous un post spécifique."""
         cl = self.get_client(account)
         if not cl:
             return 0
-        count = 0
+            
+        liked_count = 0
         try:
-            medias = cl.hashtag_medias_recent(hashtag, amount=amount + 5)
-            for m in medias[:amount]:
-                if HumanSimulator.should_act(0.75):
-                    cl.media_like(m.id)
-                    get_manager().increment(account["id"], "like")
-                    count += 1
-                HumanSimulator.pause("like")
+            comments = cl.media_comments(target_media_id, amount=10)
+            # Trier par nombre de likes pour trouver les "meilleurs"
+            top_comments = sorted(comments, key=lambda c: c.like_count, reverse=True)
+            
+            for comment in top_comments[:amount]:
+                if HumanSimulator.should_act(0.6):
+                    cl.comment_like(comment.pk)
+                    liked_count += 1
+                    HumanSimulator.pause("like")
         except Exception as e:
-            print(f"⚠️  IG like hashtag: {e}")
-        return count
+            print(f"⚠️ Erreur Like Commentaire: {e}")
+            
+        return liked_count
 
-    def comment_on_hashtag(self, account: dict, hashtag: str, amount: int = 3) -> int:
-        cl = self.get_client(account)
-        if not cl:
-            return 0
-        count = 0
+    def generate_ai_comment(self, context: str) -> str:
+        """Utilise l'API Groq (LM Studio) pour générer un commentaire pertinent et naturel."""
+        groq_api_key = os.environ.get("GROQ_API_KEY")
+        if not groq_api_key:
+            # Fallback sur Spintax basique si pas d'API Key
+            return HumanSimulator.random_comment()
+            
         try:
-            medias = cl.hashtag_medias_recent(hashtag, amount=amount + 5)
-            for m in medias[:amount]:
-                if HumanSimulator.should_act(0.3):
-                    cl.media_comment(m.id, HumanSimulator.random_comment())
-                    get_manager().increment(account["id"], "comment")
-                    count += 1
-                HumanSimulator.pause("comment")
-        except Exception as e:
-            print(f"⚠️  IG comment: {e}")
-        return count
-
-    def follow_followers(self, account: dict, target: str, amount: int = 5) -> int:
-        cl = self.get_client(account)
-        if not cl:
-            return 0
-        count = 0
-        try:
-            tid = cl.user_id_from_username(target)
-            followers = cl.user_followers(tid, amount=amount + 10)
-            for uid, info in followers.items():
-                if count >= amount:
-                    break
-                if HumanSimulator.should_act(0.4):
-                    cl.user_follow(uid)
-                    get_manager().increment(account["id"], "follow")
-                    count += 1
-                HumanSimulator.pause("follow")
-        except Exception as e:
-            print(f"⚠️  IG follow: {e}")
-        return count
-
-    def post_photo(self, account: dict, image_path: str, caption: str) -> Optional[str]:
-        cl = self.get_client(account)
-        if not cl:
-            return None
-        try:
-            media = cl.photo_upload(image_path, caption)
-            get_manager().increment(account["id"], "post")
-            return str(media.id)
-        except Exception as e:
-            print(f"⚠️  IG post: {e}")
-            return None
-
-    def run_daily_routine(self, account: dict) -> dict:
-        cl = self.get_client(account)
-        if not cl:
-            return {"status": "error", "reason": "login"}
-
-        results = {"likes": 0, "comments": 0, "follows": 0}
-
-        # Feed scroll
-        try:
-            cl.get_timeline_feed()
-            HumanSimulator.pause("scroll")
+            headers = {
+                "Authorization": f"Bearer {groq_api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": "mixtral-8x7b-32768",
+                "messages": [
+                    {"role": "system", "content": "Tu es un utilisateur Instagram. Écris un commentaire court, humain et pertinent (1 phrase, 1 emoji) basé sur le contexte. Pas de hashtags."},
+                    {"role": "user", "content": f"Le post parle de : {context}"}
+                ],
+                "temperature": 0.7
+            }
+            response = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=data)
+            return response.json()["choices"][0]["message"]["content"].strip().replace('"', '')
         except:
-            pass
+            return HumanSimulator.random_comment()
 
-        # Like depuis hashtags
-        tags = ["nature", "photography", "travel", "art", "food", "fashion", "music"]
-        selected = random.sample(tags, random.randint(2, 4))
-        for tag in selected:
-            results["likes"] += self.like_from_hashtag(account, tag, random.randint(5, 15))
-            HumanSimulator.pause("between")
+    # --- MODULE 3 : CROISSANCE & FILTRAGE (Follow/Unfollow) ---
 
-        # Commentaires
-        if selected:
-            results["comments"] += self.comment_on_hashtag(account, random.choice(selected), random.randint(2, 5))
-            HumanSimulator.pause("between")
+    def check_language_filter(self, bio: str, allowed_langs: List[str]) -> bool:
+        """Vérifie si l'utilisateur cible correspond aux langues exigées (basé sur des mots-clés dans la bio)."""
+        if not allowed_langs:
+            return True # Aucun filtre
+            
+        bio_lower = bio.lower()
+        
+        # Dictionnaire basique de détection
+        lang_keywords = {
+            "fr": ["france", "paris", "français", "french", "ouais", "ici"],
+            "mg": ["mada", "gasy", "malagasy", "antananarivo", "akory"],
+            "en": ["usa", "uk", "english", "world", "official"]
+        }
+        
+        for lang in allowed_langs:
+            if lang in lang_keywords:
+                for keyword in lang_keywords[lang]:
+                    if keyword in bio_lower:
+                        return True
+        return False
 
-        # Follow
-        targets = ["natgeo", "bbcnews", "lonelyplanet", "nytimes", "nasa"]
-        results["follows"] += self.follow_followers(account, random.choice(targets), random.randint(1, 4))
-
-        return {"status": "success", **results}
+    def smart_follow_loop(self, account: dict, target_competitor: str, allowed_langs: List[str] = []) -> dict:
+        """Cycle intelligent pour suivre les abonnés d'un concurrent avec filtrage de langue."""
+        cl = self.get_client(account)
+        if not cl:
+            return {"followed": 0}
+            
+        followed = 0
+        try:
+            competitor_id = cl.user_id_from_username(target_competitor)
+            followers = cl.user_followers(competitor_id, amount=20)
+            
+            for uid, user_info in followers.items():
+                if followed >= 5: # Limite par cycle pour la sécurité
+                    break
+                    
+                # Extraire la bio complète pour le filtre (nécessite parfois un appel user_info)
+                full_info = cl.user_info(uid)
+                bio = full_info.biography
+                
+                # Filtrage de langue
+                if allowed_langs and not self.check_language_filter(bio, allowed_langs):
+                    continue # On saute cet utilisateur
+                    
+                if HumanSimulator.should_act(0.5):
+                    cl.user_follow(uid)
+                    followed += 1
+                    HumanSimulator.pause("follow")
+                    
+        except Exception as e:
+            print(f"⚠️ Erreur Smart Follow: {e}")
+            
+        return {"followed": followed}
