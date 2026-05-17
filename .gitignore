@@ -14,3 +14,6 @@ env/
 
 # Clés secrètes
 .master_key
+
+# Base de données locale
+*.db

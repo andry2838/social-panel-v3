@@ -22,7 +22,6 @@ export default function App() {
 
   return (
     <>
-      {/* Animated background orbs */}
       <div className="orbs">
         <div className="orb orb1" />
         <div className="orb orb2" />
@@ -30,7 +29,6 @@ export default function App() {
       </div>
 
       <div className="shell">
-        {/* ── SIDEBAR ── */}
         <aside className="sidebar">
           <div className="sidebar-logo">
             <div className="sidebar-logo-icon">🚀</div>
@@ -51,7 +49,6 @@ export default function App() {
           </div>
         </aside>
 
-        {/* ── MAIN ── */}
         <main className="main">
           {pages[tab]}
         </main>
@@ -130,8 +127,12 @@ function AccountsPage() {
 
   const f = (k, v) => setForm(p => ({...p, [k]: v}))
 
-  useEffect(() => {
+  const loadAccounts = () => {
     fetch('/api/v1/accounts').then(r => r.json()).then(d => { if(d.accounts) setAccounts(d.accounts) }).catch(()=>{})
+  }
+
+  useEffect(() => {
+    loadAccounts()
   }, [])
 
   const submit = async () => {
@@ -144,7 +145,7 @@ function AccountsPage() {
       const d = await res.json()
       if (res.ok) {
         setMsg({ok:true, txt:`✅ @${d.username} connecté !`})
-        setAccounts(p=>[...p, d])
+        loadAccounts()
         setForm({ username:'', password:'', platform:'instagram', proxy:'', two_factor_seed:'', tags:'' })
       } else setMsg({ok:false, txt:`❌ ${d.detail}`})
     } catch { setMsg({ok:false, txt:'❌ Erreur réseau'}) }
@@ -163,7 +164,6 @@ function AccountsPage() {
       </div>
 
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24}}>
-        {/* Formulaire */}
         <div className="card fade-up-2">
           <div className="section-title">➕ Ajouter un Compte</div>
           {msg && <div className={`alert ${msg.ok?'alert-success':'alert-error'}`}>{msg.txt}</div>}
@@ -199,7 +199,6 @@ function AccountsPage() {
           </button>
         </div>
 
-        {/* Liste */}
         <div className="card fade-up-3" style={{overflow:'auto', maxHeight:560}}>
           <div className="section-title">📋 Comptes Enregistrés ({accounts.length})</div>
           {accounts.length === 0
@@ -208,7 +207,7 @@ function AccountsPage() {
                 <div key={a.id} className="account-row">
                   <div>
                     <div className="account-name">@{a.username}</div>
-                    <div className="account-meta">{a.platform} · {a.two_factor_seed ? '🔐 2FA Activé' : '⚠️ Sans 2FA'}</div>
+                    <div className="account-meta">{a.platform} · {a.two_factor_seed ? '🔐 2FA' : 'Sans 2FA'}</div>
                   </div>
                   <div className={`status-pill ${statusClass(a.status)}`}>{a.status||'pending'}</div>
                 </div>
@@ -222,10 +221,20 @@ function AccountsPage() {
 
 /* ════════════════════════════ CAMPAIGNS ════════════════════════════ */
 function CampaignsPage() {
-  const [form, setForm] = useState({ name:'', targets:'', langFilter:'fr' })
+  const [form, setForm] = useState({ name:'', targets:'', langFilter:'fr', accountId:'' })
+  const [accounts, setAccounts] = useState([])
   const [features, setFeatures] = useState({ autoLike:true, autoFollow:true, storyInteractions:false, aiComments:false, likTopComments:false, welcomeDm:false })
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState(null)
+
+  useEffect(() => {
+    fetch('/api/v1/accounts').then(r => r.json()).then(d => {
+      if (d.accounts) {
+        setAccounts(d.accounts)
+        if (d.accounts.length > 0) setForm(f => ({...f, accountId: d.accounts[0].id}))
+      }
+    })
+  }, [])
 
   const toggleFeat = k => setFeatures(p => ({...p, [k]: !p[k]}))
   const f = (k, v) => setForm(p => ({...p, [k]: v}))
@@ -240,11 +249,12 @@ function CampaignsPage() {
   ]
 
   const submit = async () => {
+    if (!form.accountId) { setMsg({ok:false, txt:'❌ Veuillez sélectionner un compte'}); return; }
     setLoading(true); setMsg(null)
     try {
       const res = await fetch('/api/v1/campaigns', { method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          account_id: 'demo_account',
+          account_id: String(form.accountId),
           name: form.name || 'Nouvelle Campagne',
           type: 'EXPERT',
           targets: { competitors: form.targets.split(',').map(t=>t.trim()).filter(Boolean) },
@@ -279,6 +289,13 @@ function CampaignsPage() {
           {msg && <div className={`alert ${msg.ok?'alert-success':'alert-error'}`}>{msg.txt}</div>}
 
           <div className="form-group">
+            <label className="form-label">Compte source</label>
+            <select className="select" value={form.accountId} onChange={e=>f('accountId',e.target.value)}>
+              {accounts.map(a => <option key={a.id} value={a.id}>@{a.username} ({a.platform})</option>)}
+            </select>
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Nom de la campagne</label>
             <input className="input" placeholder="Ex: Croissance Marché FR 2026" value={form.name} onChange={e=>f('name',e.target.value)} />
           </div>
@@ -307,19 +324,15 @@ function CampaignsPage() {
           </div>
         </div>
 
-        {/* Summary */}
         <div className="card fade-up-3" style={{height:'fit-content', position:'sticky', top:0}}>
           <div className="section-title">📊 Résumé</div>
           <div style={{display:'flex', flexDirection:'column', gap:14, color:'var(--c-muted2)', fontSize:14}}>
-            <div><strong style={{color:'var(--c-text)'}}>Type:</strong> Expert (Automatisé)</div>
+            <div><strong style={{color:'var(--c-text)'}}>Type:</strong> Expert</div>
             <div><strong style={{color:'var(--c-text)'}}>Cibles:</strong> {form.targets.split(',').filter(x=>x.trim()).length} comptes</div>
             <div><strong style={{color:'var(--c-text)'}}>Modules:</strong> {activeCount} / {FEATS.length} actifs</div>
-            <div><strong style={{color:'var(--c-text)'}}>Langue:</strong> {form.langFilter||'Toutes'}</div>
             <div><strong style={{color:'var(--c-text)'}}>Protection:</strong> <span style={{color:'#10b981'}}>🛡️ HumanDelay ON</span></div>
           </div>
-
           <div style={{height:1, background:'var(--c-border)', margin:'20px 0'}} />
-
           <button className="btn btn-primary" style={{width:'100%', justifyContent:'center'}} onClick={submit} disabled={loading}>
             {loading ? '⏳ Lancement...' : '🚀 Lancer la Campagne'}
           </button>
@@ -331,19 +344,36 @@ function CampaignsPage() {
 
 /* ════════════════════════════ CONTENT PAGE ════════════════════════════ */
 function ContentPage() {
-  const [posts, setPosts] = useState([
-    { id:1, account:'@mon_compte', caption:'✨ Post motivation du lundi !', scheduled:'2026-05-16 09:00', status:'scheduled' },
-    { id:2, account:'@mon_compte', caption:'🚀 Découvrez notre nouvelle offre...', scheduled:'2026-05-17 18:00', status:'scheduled' },
-    { id:3, account:'@shop_ig',    caption:'🛍️ Promo flash -30% ce weekend !', scheduled:'2026-05-15 12:00', status:'published' },
-  ])
+  const [posts, setPosts] = useState([])
   const [form, setForm] = useState({ account:'', caption:'', date:'', time:'' })
+  const [loading, setLoading] = useState(false)
+  
   const f = (k,v) => setForm(p=>({...p,[k]:v}))
 
-  const addPost = () => {
+  const loadPosts = () => {
+    fetch('/api/v1/posts/scheduled').then(r => r.json()).then(d => { if(d.posts) setPosts(d.posts) })
+  }
+
+  useEffect(() => { loadPosts() }, [])
+
+  const addPost = async () => {
     if (!form.caption || !form.date) return
-    const newPost = { id: Date.now(), account: form.account||'@mon_compte', caption: form.caption, scheduled: `${form.date} ${form.time||'12:00'}`, status:'scheduled' }
-    setPosts(p=>[...p, newPost])
-    setForm({ account:'', caption:'', date:'', time:'' })
+    setLoading(true)
+    try {
+      await fetch('/api/v1/posts/schedule', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(form)
+      })
+      setForm({ account:'', caption:'', date:'', time:'' })
+      loadPosts()
+    } catch {}
+    setLoading(false)
+  }
+
+  const deletePost = async (id) => {
+    await fetch(`/api/v1/posts/schedule/${id}`, { method:'DELETE' })
+    loadPosts()
   }
 
   return (
@@ -351,12 +381,11 @@ function ContentPage() {
       <div className="page-header fade-up">
         <div>
           <div className="page-title">📅 Contenu & Calendrier</div>
-          <div className="page-sub">Programmez et gérez vos publications sur tous vos comptes</div>
+          <div className="page-sub">Programmez vos publications (API réelle)</div>
         </div>
       </div>
 
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24}}>
-        {/* Formulaire de programmation */}
         <div className="card fade-up-2">
           <div className="section-title">📝 Programmer un Post</div>
           <div className="form-group">
@@ -365,11 +394,11 @@ function ContentPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Caption / Légende</label>
-            <textarea className="input" placeholder="Rédigez votre caption ici...\n\n#hashtag1 #hashtag2" value={form.caption} onChange={e=>f('caption',e.target.value)} />
+            <textarea className="input" placeholder="Rédigez ici..." value={form.caption} onChange={e=>f('caption',e.target.value)} />
           </div>
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}} className="form-group">
             <div>
-              <label className="form-label">Date de publication</label>
+              <label className="form-label">Date</label>
               <input className="input" type="date" value={form.date} onChange={e=>f('date',e.target.value)} />
             </div>
             <div>
@@ -377,28 +406,21 @@ function ContentPage() {
               <input className="input" type="time" value={form.time} onChange={e=>f('time',e.target.value)} />
             </div>
           </div>
-          <div style={{padding:'12px', borderRadius:'10px', background:'rgba(56,189,248,0.08)', border:'1px solid rgba(56,189,248,0.2)', marginBottom:'18px', fontSize:'13px', color:'#7dd3fc'}}>
-            💡 Le Celery Beat publiera automatiquement à l'heure programmée via l'API Instagram.
-          </div>
-          <button className="btn btn-primary" style={{width:'100%', justifyContent:'center'}} onClick={addPost}>
-            📅 Ajouter au Calendrier
+          <button className="btn btn-primary" style={{width:'100%', justifyContent:'center'}} onClick={addPost} disabled={loading}>
+            {loading ? '⏳ Ajout...' : '📅 Ajouter au Calendrier'}
           </button>
         </div>
 
-        {/* Calendrier / Liste */}
         <div className="card fade-up-3" style={{overflow:'auto', maxHeight:520}}>
-          <div className="section-title">🗓️ Posts Programmés ({posts.filter(p=>p.status==='scheduled').length})</div>
+          <div className="section-title">🗓️ Posts Programmés ({posts.length})</div>
           {posts.map(post => (
-            <div key={post.id} style={{padding:'14px 16px', borderRadius:'12px', marginBottom:'10px',
-              background: post.status==='published' ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${post.status==='published'?'rgba(16,185,129,0.2)':'var(--c-border)'}`}}>
+            <div key={post.id} style={{padding:'14px 16px', borderRadius:'12px', marginBottom:'10px', background:'rgba(255,255,255,0.02)', border:'1px solid var(--c-border)'}}>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px'}}>
                 <span style={{fontSize:'13px', fontWeight:600, color:'var(--c-purple2)'}}>{post.account}</span>
-                <span className={`status-pill ${post.status==='published'?'status-active':'status-pending'}`}>
-                  {post.status==='published' ? '✅ Publié' : `⏰ ${post.scheduled}`}
-                </span>
+                <button onClick={() => deletePost(post.id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer'}}>✕</button>
               </div>
-              <div style={{fontSize:'13px', color:'var(--c-muted2)', lineHeight:1.5}}>{post.caption}</div>
+              <div style={{fontSize:'12px', color:'var(--c-muted2)', marginBottom:4}}>⏰ {post.scheduled}</div>
+              <div style={{fontSize:'13px', color:'var(--c-text)', lineHeight:1.5}}>{post.caption}</div>
             </div>
           ))}
         </div>
@@ -409,70 +431,61 @@ function ContentPage() {
 
 /* ════════════════════════════ MESSAGES PAGE ════════════════════════════ */
 function MessagesPage() {
-  const [welcomeMsg, setWelcomeMsg] = useState('Bonjour {username} ! 👋 Merci de me suivre. Découvrez mes offres exclusives ici 👇')
-  const [rules, setRules] = useState([
-    { id:1, trigger:'Nouveau follower', action:'Envoyer Welcome DM', active:true },
-    { id:2, trigger:'Mot-clé: "prix"', action:'Envoyer tarifs automatiquement', active:false },
-    { id:3, trigger:'Story Reply', action:'Répondre via IA (Groq)', active:true },
-  ])
+  const [welcomeMsg, setWelcomeMsg] = useState('')
+  const [rules, setRules] = useState([])
+  const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/v1/settings/dm-rules').then(r => r.json()).then(d => {
+      setWelcomeMsg(d.welcome_message)
+      setRules(d.rules)
+    })
+  }, [])
 
   const toggleRule = id => setRules(r => r.map(x => x.id===id ? {...x, active:!x.active} : x))
 
-  const save = () => { setSaved(true); setTimeout(()=>setSaved(false), 2000) }
+  const save = async () => {
+    setLoading(true)
+    try {
+      await fetch('/api/v1/settings/dm-rules', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ welcome_message: welcomeMsg, rules })
+      })
+      setSaved(true); setTimeout(()=>setSaved(false), 2000)
+    } catch {}
+    setLoading(false)
+  }
 
   return (
     <div>
       <div className="page-header fade-up">
         <div>
           <div className="page-title">💬 Auto-DM & Inbox</div>
-          <div className="page-sub">Automatisez vos messages et répondez intelligemment à vos abonnés</div>
+          <div className="page-sub">Configuration persistée via l'API</div>
         </div>
       </div>
 
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24}}>
-        {/* Message de bienvenue */}
         <div className="card fade-up-2">
-          <div className="section-title">👋 Message de Bienvenue (Welcome DM)</div>
-          <div style={{padding:'12px', borderRadius:'10px', background:'rgba(124,58,237,0.08)', border:'1px solid rgba(124,58,237,0.2)', marginBottom:'16px', fontSize:'13px', color:'#a78bfa'}}>
-            💡 Variables disponibles : <strong>{'{'+'username'+'}'}</strong>, <strong>{'{'+'followers_count'+'}'}</strong>
-          </div>
+          <div className="section-title">👋 Message de Bienvenue</div>
           <div className="form-group">
-            <label className="form-label">Message envoyé aux nouveaux abonnés</label>
             <textarea className="input" rows={5} value={welcomeMsg} onChange={e=>setWelcomeMsg(e.target.value)} />
           </div>
-          <div style={{padding:'12px', borderRadius:'10px', background:'rgba(16,185,129,0.06)', border:'1px solid rgba(16,185,129,0.15)', marginBottom:'16px', fontSize:'13px', color:'#6ee7b7'}}>
-            <strong>Aperçu :</strong> {welcomeMsg.replace('{username}', '@nouveau_follower')}
-          </div>
-          <button className="btn btn-primary" style={{width:'100%', justifyContent:'center'}} onClick={save}>
-            {saved ? '✅ Sauvegardé !' : '💾 Sauvegarder le Message'}
+          <button className="btn btn-primary" style={{width:'100%', justifyContent:'center'}} onClick={save} disabled={loading}>
+            {saved ? '✅ Sauvegardé !' : '💾 Sauvegarder'}
           </button>
         </div>
 
-        {/* Règles d'automatisation */}
         <div className="card fade-up-3">
-          <div className="section-title">⚙️ Règles d'Automatisation</div>
+          <div className="section-title">⚙️ Règles</div>
           {rules.map(rule => (
-            <div key={rule.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center',
-              padding:'16px', borderRadius:'12px', marginBottom:'10px',
-              background: rule.active ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${rule.active ? 'rgba(124,58,237,0.25)' : 'var(--c-border)'}`}}>
-              <div>
-                <div style={{fontSize:'14px', fontWeight:600}}>🔔 {rule.trigger}</div>
-                <div style={{fontSize:'12px', color:'var(--c-muted2)', marginTop:'3px'}}>→ {rule.action}</div>
-              </div>
-              <div className={`toggle-card ${rule.active?'on':''}`} style={{padding:'6px 12px', margin:0}}
-                onClick={()=>toggleRule(rule.id)}>
-                <div className={`toggle-dot ${rule.active?'on':''}`} />
-              </div>
+            <div key={rule.id} style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'16px', borderRadius:'12px', marginBottom:'10px', background: rule.active ? 'rgba(124,58,237,0.08)' : 'rgba(255,255,255,0.02)', border: `1px solid ${rule.active ? 'rgba(124,58,237,0.25)' : 'var(--c-border)'}`}}>
+              <div><div style={{fontSize:'14px', fontWeight:600}}>🔔 {rule.trigger}</div><div style={{fontSize:'12px', color:'var(--c-muted2)'}}>→ {rule.action}</div></div>
+              <div className={`toggle-card ${rule.active?'on':''}`} style={{padding:'6px 12px', margin:0}} onClick={()=>toggleRule(rule.id)}><div className={`toggle-dot ${rule.active?'on':''}`} /></div>
             </div>
           ))}
-
-          <div style={{marginTop:'20px', padding:'16px', borderRadius:'12px',
-            background:'rgba(56,189,248,0.06)', border:'1px solid rgba(56,189,248,0.15)'}}>
-            <div style={{fontSize:'13px', color:'#7dd3fc', marginBottom:'8px'}}>🤖 Génération de réponses par IA</div>
-            <div style={{fontSize:'12px', color:'var(--c-muted2)'}}>Connectez votre clé API Groq dans les variables Railway (GROQ_API_KEY) pour activer les réponses intelligentes.</div>
-          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,9 @@
 from celery import Celery
+from celery.schedules import crontab
 import os
 
 redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+
 app = Celery("social_panel", broker=redis_url)
 app.conf.update(
     timezone="Europe/Paris",
@@ -14,3 +16,15 @@ app.conf.update(
 )
 
 import scheduler.tasks  # noqa: enregistre les tâches
+
+# Configuration d'un Beat Schedule statique, propre et robuste.
+app.conf.beat_schedule = {
+    "reset_daily_limits_at_midnight": {
+        "task": "scheduler.tasks.reset_daily_limits",
+        "schedule": crontab(hour=0, minute=0),
+    },
+    "run_active_accounts_daily_routines": {
+        "task": "scheduler.tasks.dispatch_daily_routines",
+        "schedule": crontab(minute="*/15"), # Toutes les 15 minutes
+    }
+}

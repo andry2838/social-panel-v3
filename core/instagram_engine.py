@@ -11,6 +11,7 @@ from instagrapi import Client
 import pyotp
 from instagrapi.exceptions import ChallengeRequired, FeedbackRequired, TwoFactorRequired
 from .human_simulator import HumanSimulator
+from .account_manager import get_manager
 
 class InstagramEngine:
     def __init__(self):
@@ -222,3 +223,106 @@ class InstagramEngine:
             print(f"⚠️ Erreur Smart Follow: {e}")
             
         return {"followed": followed}
+
+    # --- MODULE 4 : ACTIONS BULK (Hashtag) ---
+
+    def like_from_hashtag(self, account: dict, hashtag: str, amount: int = 5) -> int:
+        """Like des posts récents d'un hashtag."""
+        cl = self.get_client(account)
+        if not cl:
+            return 0
+        count = 0
+        try:
+            tag = hashtag.lstrip('#')
+            medias = cl.hashtag_medias_recent(tag, amount=amount * 3)
+            for media in medias[:amount]:
+                if HumanSimulator.should_act(0.7):
+                    cl.media_like(media.pk)
+                    get_manager().increment(account["id"], "like")
+                    count += 1
+                    HumanSimulator.pause("like")
+        except Exception as e:
+            print(f"⚠️ Erreur like hashtag #{hashtag}: {e}")
+        return count
+
+    def comment_on_hashtag(self, account: dict, hashtag: str, amount: int = 3) -> int:
+        """Commente des posts récents d'un hashtag via l'IA."""
+        cl = self.get_client(account)
+        if not cl:
+            return 0
+        count = 0
+        try:
+            tag = hashtag.lstrip('#')
+            medias = cl.hashtag_medias_recent(tag, amount=amount * 4)
+            for media in medias[:amount]:
+                if HumanSimulator.should_act(0.5):
+                    context = (media.caption_text or "post Instagram")[:100]
+                    comment_text = self.generate_ai_comment(context)
+                    cl.media_comment(media.pk, comment_text)
+                    get_manager().increment(account["id"], "comment")
+                    count += 1
+                    HumanSimulator.pause("comment")
+        except Exception as e:
+            print(f"⚠️ Erreur comment hashtag #{hashtag}: {e}")
+        return count
+
+    def follow_followers(self, account: dict, target_username: str, amount: int = 5) -> int:
+        """Suit les abonnés d'un compte cible."""
+        cl = self.get_client(account)
+        if not cl:
+            return 0
+        followed = 0
+        try:
+            username = target_username.lstrip('@')
+            user_id = cl.user_id_from_username(username)
+            followers = cl.user_followers(user_id, amount=amount * 3)
+            for uid in list(followers.keys())[:amount]:
+                if HumanSimulator.should_act(0.6):
+                    cl.user_follow(uid)
+                    get_manager().increment(account["id"], "follow")
+                    followed += 1
+                    HumanSimulator.pause("follow")
+        except Exception as e:
+            print(f"⚠️ Erreur follow followers de @{target_username}: {e}")
+        return followed
+
+    def post_photo(self, account: dict, image_path: str, caption: str) -> Optional[str]:
+        """Publie une photo sur Instagram."""
+        cl = self.get_client(account)
+        if not cl:
+            return None
+        try:
+            if not os.path.exists(image_path):
+                print(f"⚠️ Image introuvable : {image_path}")
+                return None
+            media = cl.photo_upload(image_path, caption)
+            get_manager().increment(account["id"], "post")
+            return str(media.pk)
+        except Exception as e:
+            print(f"⚠️ Erreur post photo: {e}")
+            return None
+
+    def run_daily_routine(self, account: dict) -> dict:
+        """Routine quotidienne complète : likes hashtag + smart follow."""
+        cl = self.get_client(account)
+        if not cl:
+            return {"status": "error", "reason": "login"}
+
+        results = {"likes": 0, "follows": 0}
+
+        # 1. Liker via les tags du compte (ou tags par défaut)
+        tags = account.get("tags") or ["lifestyle", "inspiration", "motivation"]
+        for tag in [t for t in tags if t][:2]:
+            count = self.like_from_hashtag(account, tag, amount=random.randint(5, 12))
+            results["likes"] += count
+            HumanSimulator.pause("between")
+
+        # 2. Follow intelligent aléatoire
+        if HumanSimulator.should_act(0.4):
+            default_targets = ["instagram", "natgeo", "9gag"]
+            res = self.smart_follow_loop(account, random.choice(default_targets))
+            results["follows"] += res.get("followed", 0)
+            HumanSimulator.pause("between")
+
+        get_manager().set_status(account["id"], "active")
+        return {"status": "success", **results}

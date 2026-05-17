@@ -15,6 +15,16 @@ class Account(Base):
     tags = Column(JSON, default=[])
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
+    # Unified new fields
+    two_factor_seed = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    active = Column(Boolean, default=True)
+    last_login = Column(DateTime, nullable=True)
+    last_action = Column(DateTime, nullable=True)
+    daily_actions = Column(Integer, default=0)
+    total_actions = Column(Integer, default=0)
+    notes = Column(String, nullable=True)
+    
     # Relations
     campaigns = relationship("Campaign", back_populates="account")
     logs = relationship("ActionLog", back_populates="account")

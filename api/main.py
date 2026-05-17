@@ -1,18 +1,19 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routes import router
+from fastapi.staticfiles import StaticFiles
 
+# 1. Base de données EN PREMIER (avant tout import de routes)
+from core.database import engine, Base
+import core.models
+Base.metadata.create_all(bind=engine)
+
+# 2. App FastAPI
 app = FastAPI(
     title="Social Panel API",
     description="Gestion multi-comptes Instagram + Threads + Twitter/X",
     version="3.0.0"
 )
-
-# Initialisation de la base de données
-from core.database import engine, Base
-import core.models
-
-Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,16 +23,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 3. Routes (après DB init)
+from .routes import router
 app.include_router(router)
-
-from fastapi.staticfiles import StaticFiles
-import os
 
 @app.get("/health")
 def health():
     return {"status": "ok", "version": "3.0.0"}
 
-# Serve modern React frontend
+# 4. Serve React frontend si build existe
 dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(dist_path):
     app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")

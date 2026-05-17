@@ -23,7 +23,7 @@ def generate(count: int = 50):
         )
 
     s = mgr.get_stats()
-    print(f"\n✅ {count} comptes générés !")
+    print(f"\n[OK] {count} comptes generes !")
     for p, n in s["platforms"].items():
         print(f"   {p}: {n}")
 

@@ -19,12 +19,17 @@ class TwitterEngine:
         if aid in self.clients:
             return self.clients[aid]
         try:
+            email = account.get("email")
+            if not email:
+                raise ValueError("Email de secours requis pour la connexion Twitter/X (auth_info_2)")
+            
             client = Client('fr-FR')
-            await client.login(
-                auth_info_1=account["username"],
-                auth_info_2=account["username"],
-                password=account["password"]
-            )
+            login_kwargs = {
+                "auth_info_1": account["username"],
+                "password": account["password"],
+                "auth_info_2": email
+            }
+            await client.login(**login_kwargs)
             client.save_cookies(f"accounts/twitter_cookies_{account['username']}.json")
             get_manager().set_status(aid, "active")
             self.clients[aid] = client
