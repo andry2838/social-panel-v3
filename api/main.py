@@ -35,3 +35,14 @@ def health():
 dist_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
 if os.path.exists(dist_path):
     app.mount("/", StaticFiles(directory=dist_path, html=True), name="frontend")
+
+if __name__ == "__main__":
+    import uvicorn
+    # Récupérer de façon sécurisée le port injecté par Railway
+    port_str = os.environ.get("PORT", "8000")
+    try:
+        port = int(port_str)
+    except ValueError:
+        port = 8000
+    print(f"🚀 Démarrage du serveur FastAPI sur le port {port}...")
+    uvicorn.run("api.main:app", host="0.0.0.0", port=port)
